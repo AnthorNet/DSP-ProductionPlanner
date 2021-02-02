@@ -15,7 +15,8 @@ export default function ProductionPlannerWorker()
         useManifolds                : 1,
         mergeBuildings              : 1,
         maxLevel                    : null,
-        maxBeltSpeed                : 30
+        maxBeltSpeed                : 1800,
+        maxAssemblerSpeed           : 'Assembling_Machine_Mk2'
     };
 
     self.buildings      = {};
@@ -81,6 +82,7 @@ export default function ProductionPlannerWorker()
 
                 // Reset max speeds
                 delete formData.maxBeltSpeed;
+                delete formData.maxAssemblerSpeed;
 
                 delete formData.maxLevel;
             }
@@ -90,11 +92,6 @@ export default function ProductionPlannerWorker()
         {
             self.url.push('mergeBuildings/' + formData.mergeBuildings);
             self.options.mergeBuildings = parseInt(formData.mergeBuildings);
-
-            if(self.options.mergeBuildings !== 1)
-            {
-                delete formData.powerShards;
-            }
         }
 
         if(formData.useManifolds !== undefined)
@@ -116,7 +113,50 @@ export default function ProductionPlannerWorker()
                 self.url.push('maxBeltSpeed/' + formData.maxBeltSpeed);
             }
 
-            self.options.maxBeltSpeed = parseInt(formData.maxBeltSpeed);
+            self.options.maxBeltSpeed = parseInt(formData.maxBeltSpeed) * 60;
+        }
+
+        if(formData.maxAssemblerSpeed !== undefined)
+        {
+            if(self.options.maxAssemblerSpeed !== formData.maxAssemblerSpeed)
+            {
+                self.url.push('maxAssemblerSpeed/' + formData.maxAssemblerSpeed);
+            }
+
+            self.options.maxAssemblerSpeed = formData.maxAssemblerSpeed;
+
+            if(self.options.maxAssemblerSpeed === 'Assembling_Machine_Mk1')
+            {
+                delete self.buildings.Assembling_Machine_Mk2;
+                delete self.buildings.Assembling_Machine_Mk3;
+            }
+            if(self.options.maxAssemblerSpeed === 'Assembling_Machine_Mk2')
+            {
+                delete self.buildings.Assembling_Machine_Mk1;
+                delete self.buildings.Assembling_Machine_Mk3;
+            }
+            if(self.options.maxAssemblerSpeed === 'Assembling_Machine_Mk3')
+            {
+                delete self.buildings.Assembling_Machine_Mk1;
+                delete self.buildings.Assembling_Machine_Mk2;
+            }
+        }
+
+        if(formData.altRecipes !== undefined)
+        {
+            self.postMessage({type: 'updateLoaderText', text: 'Applying alternative recipes...'});
+
+            self.options.altRecipes = [];
+            for(let i = 0; i < formData.altRecipes.length; i++)
+            {
+                let recipeKey = formData.altRecipes[i];
+
+                if(self.recipes[recipeKey] !== undefined)
+                {
+                    self.options.altRecipes.push(recipeKey);
+                    self.url.push('altRecipes/' + recipeKey);
+                }
+            }
         }
 
         self.postMessage({type: 'updateUrl', url: self.url});
@@ -127,7 +167,7 @@ export default function ProductionPlannerWorker()
         for(let itemKey in self.requestedItems)
         {
             let requestedQty = self.requestedItems[itemKey];
-            let maxMergedQty = self.options.maxBeltSpeed * 60; // DSP uses seconds
+            let maxMergedQty = self.options.maxBeltSpeed;
 
             while(requestedQty >= maxMergedQty)
             {
@@ -172,45 +212,12 @@ export default function ProductionPlannerWorker()
                                 && sourceNodeData.clockSpeed === 100 // Not touched yet!
                             )
                             {
-                                // Can we apply some overclocking?
-                                if(self.options.mergeBuildings === 1 && self.options.availablePowerShards > 0 && (mergingNodeData.qtyUsed + sourceNodeData.qtyUsed) > mergingNodeData.qtyProduced && mergingNodeData.clockSpeed < 250)
-                                {
-                                    let allowSourceNodeOverclocking = false;
-                                        if(mergingNodeData.buildingType.startsWith('Build_MinerMk') && self.options.allowMinerOverclocking === true)
-                                        {
-                                            allowSourceNodeOverclocking = true;
-                                        }
-                                        if(mergingNodeData.buildingType.startsWith('Build_OilPump') && self.options.allowPumpOverclocking === true)
-                                        {
-                                            allowSourceNodeOverclocking = true;
-                                        }
-                                        if(mergingNodeData.buildingType.startsWith('Build_MinerMk') === false && mergingNodeData.buildingType.startsWith('Build_OilPump') === false && self.options.allowBuildingOverclocking === true)
-                                        {
-                                            allowSourceNodeOverclocking = true;
-                                        }
-
-                                        if(allowSourceNodeOverclocking === true)
-                                        {
-                                            while(self.options.availablePowerShards > 0 && (mergingNodeData.qtyUsed + sourceNodeData.qtyUsed) > mergingNodeData.qtyProduced && mergingNodeData.clockSpeed < 250)
-                                            {
-                                                self.options.availablePowerShards--;
-                                                mergingNodeData.clockSpeed += 50;
-
-                                                mergingNodeData.qtyProduced = mergingNodeData.qtyProducedDefault * mergingNodeData.clockSpeed / 100;
-                                            }
-                                        }
-                                }
-
                                 if(mergingNodeData.qtyUsed < mergingNodeData.qtyProduced || self.options.viewMode === 'SIMPLE')
                                 {
                                     let maxMergedQty        = mergingNodeData.qtyUsed + sourceNodeData.qtyUsed;
                                     let mergedPercentage    = 100;
                                     let maxBeltSpeed        = self.options.maxBeltSpeed;
-                                        if(mergingNodeData.buildingType === 'Build_OilPump_C' || mergingNodeData.buildingType === 'Build_WaterPump_C')
-                                        {
-                                            maxBeltSpeed = self.options.maxPipeSpeed;
-                                        }
-                                    let mergedQty       = Math.min(maxMergedQty, mergingNodeData.qtyProduced, maxBeltSpeed);
+                                    let mergedQty           = Math.min(maxMergedQty, mergingNodeData.qtyProduced, maxBeltSpeed);
                                         if(self.options.viewMode === 'SIMPLE')
                                         {
                                             mergedQty   = maxMergedQty;
@@ -532,37 +539,20 @@ export default function ProductionPlannerWorker()
                                                 + ' ' + self.items[node.data.itemId].name;
             }
 
-            /* TODO
-            if(node.data.nodeType === 'merger')
+            if(node.data.nodeType === 'merger' || node.data.nodeType === 'splitter') //TODO: Balance?
             {
-                self.graphNodes[i].data.label   = self.buildings.Build_ConveyorAttachmentMerger_C.name + '\n(' + self.items[node.data.itemId].name + ')';
-                self.graphNodes[i].data.image   = self.buildings.Build_ConveyorAttachmentMerger_C.image;
+                self.graphNodes[i].data.label   = self.buildings.Splitter.name + '\n(' + self.items[node.data.itemId].name + ')';
+                self.graphNodes[i].data.image   = self.buildings.Splitter.image;
 
-                if(self.listBuildings.Build_ConveyorAttachmentMerger_C === undefined)
+                if(self.listBuildings.Splitter === undefined)
                 {
-                    self.listBuildings.Build_ConveyorAttachmentMerger_C = 1;
+                    self.listBuildings.Splitter = 1;
                 }
                 else
                 {
-                    self.listBuildings.Build_ConveyorAttachmentMerger_C += 1;
+                    self.listBuildings.Splitter += 1;
                 }
             }
-
-            if(node.data.nodeType === 'splitter')
-            {
-                self.graphNodes[i].data.label   = self.buildings.Build_ConveyorAttachmentSplitter_C.name + '\n(' + self.items[node.data.itemId].name + ')';
-                self.graphNodes[i].data.image   = self.buildings.Build_ConveyorAttachmentSplitter_C.image;
-
-                if(self.listBuildings.Build_ConveyorAttachmentSplitter_C === undefined)
-                {
-                    self.listBuildings.Build_ConveyorAttachmentSplitter_C = 1;
-                }
-                else
-                {
-                    self.listBuildings.Build_ConveyorAttachmentSplitter_C += 1;
-                }
-            }
-            */
 
             if(node.data.nodeType === 'productionBuilding')
             {
@@ -806,24 +796,10 @@ export default function ProductionPlannerWorker()
 
                     if(self.buildings[buildingId].extractionRate !== undefined)
                     {
-                        productionCraftingTime  = 0.5;
-
-                        switch(buildingId)
+                        productionCraftingTime  = 1;
+                        if(self.buildings[buildingId].extractionRate !== undefined)
                         {
-                            case 'Build_OilPump_C':
-                                if(self.buildings[buildingId].extractionRate[self.options.pumpSpeed] !== undefined)
-                                {
-                                    productionCraftingTime = 60 / (self.buildings[buildingId].extractionRate[self.options.pumpSpeed]);
-                                }
-                                break;
-                            case 'Build_WaterPump_C':
-                                productionCraftingTime = 60 / (self.buildings[buildingId].extractionRate['normal']);
-                                break;
-                            default:
-                                if(self.buildings[buildingId].extractionRate[self.options.minerSpeed] !== undefined)
-                                {
-                                    productionCraftingTime = 60 / self.buildings[buildingId].extractionRate[self.options.minerSpeed];
-                                }
+                            productionCraftingTime = 60 / self.buildings[buildingId].extractionRate;
                         }
                     }
                     else
@@ -851,7 +827,13 @@ export default function ProductionPlannerWorker()
                     }
 
                     let currentParentVisId  = buildingId + '_'  + self.nodeIdKey;
-                    let qtyProduced         = (60 / productionCraftingTime * productionPieces);
+                    let productionSpeed     = 1;
+                        if(self.buildings[buildingId].productionSpeed !== undefined)
+                        {
+                            productionSpeed = self.buildings[buildingId].productionSpeed;
+                        }
+
+                    let qtyProduced         = (60 * productionSpeed / productionCraftingTime * productionPieces);
                     let qtyUsed             = Math.min(qtyProduced, options.qty);
 
                     // Push new node!
@@ -1205,13 +1187,10 @@ export default function ProductionPlannerWorker()
                             }
                             else
                             {
-                                if(self.graphNodes[k].data.nodeType === 'merger')
+                                //TODO: Merger in DSP?
+                                if(self.graphNodes[k].data.nodeType === 'merger' || self.graphNodes[k].data.nodeType === 'splitter')
                                 {
-                                    self.graphNodes[k].data.buildingType = 'Build_ConveyorAttachmentMerger_C';
-                                }
-                                if(self.graphNodes[k].data.nodeType === 'splitter')
-                                {
-                                    self.graphNodes[k].data.buildingType = 'Build_ConveyorAttachmentSplitter_C';
+                                    self.graphNodes[k].data.buildingType = 'Splitter';
                                 }
 
                                 html.push('<img src="' + self.buildings[self.graphNodes[k].data.buildingType].image + '" alt="' + self.buildings[self.graphNodes[k].data.buildingType].name + '" style="width: 40px;" class="mr-3 collapseChildren" />');
@@ -1510,9 +1489,23 @@ export default function ProductionPlannerWorker()
         let currentItemClassName    = self.items[itemId].className;
         let availableRecipes        = [];
 
+            // Grab recipe that can produce the requested item...
+            for(let i = 0; i < self.options.altRecipes.length; i++)
+            {
+                let recipeKey = self.options.altRecipes[i];
+
+                    if(self.recipes[recipeKey] !== undefined)
+                    {
+                        if(self.recipes[recipeKey].produce[currentItemClassName] !== undefined)
+                        {
+                            return recipeKey;
+                        }
+                    }
+            }
+
             for(let recipeKey in self.recipes)
             {
-                if((recipeKey.indexOf('Alternate_') === -1 || recipeKey === 'Recipe_Alternate_Turbofuel_C') && recipeKey !== 'Recipe_PureAluminumIngot_C')
+                if(recipeKey.indexOf('_Alternative') === -1)
                 {
                     if(self.recipes[recipeKey].produce !== undefined)
                     {

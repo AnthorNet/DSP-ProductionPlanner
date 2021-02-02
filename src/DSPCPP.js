@@ -212,6 +212,27 @@ export default class DSPCPP
             this.triggerUpdateDebounce();
         }.bind(this));
 
+        // Sync alternative recipes on change
+        $('select[name="altRecipes[]"]').on('changed.bs.select', function(e, clickedIndex, isSelected, previousValue){
+            let clickedValue = $(this).find('option:eq(' + clickedIndex + ')').attr('value');
+
+                if(Array.isArray(previousValue)) // #mainAltRecipe was clicked...
+                {
+                    let option = $('select[name="altRecipes[]"]:not(#mainAltRecipe) option[value="' + clickedValue + '"]');
+                    let select = option.parent();
+
+                        option.prop('selected', isSelected);
+                        select.selectpicker('refresh');
+                }
+                else // Need to sync #mainAltRecipe
+                {
+                    $('#mainAltRecipe option[value="' + previousValue + '"]').prop('selected', false);
+                    $('#mainAltRecipe option[value="' + clickedValue + '"]').prop('selected', true);
+
+                    $('#mainAltRecipe').selectpicker('refresh');
+                }
+        });
+
         // Switch available options based on view mode
         $('select[name="view"]').on('change', function(){
             let currentValue = $(this).val();
@@ -265,7 +286,47 @@ export default class DSPCPP
                 {
                     if($(this).children("option:selected").val() !== '')
                     {
-                        formData[$(this).attr('name').replace('[]', '')] = $(this).children("option:selected").val();
+                        if($(this).attr('name') === 'altRecipes[]')
+                        {
+                            let canUpdate       = false;
+                            let isMainAltRecipe = ($(this).attr('id') === 'mainAltRecipe') ? true : false;
+
+                                if(isMainAltRecipe === false)
+                                {
+                                    let mediaParent = $(this).closest('.media');
+                                        if(mediaParent.hasClass('d-none') === false)
+                                        {
+                                            canUpdate = true;
+                                        }
+                                }
+
+                                if(isMainAltRecipe === true || canUpdate === true)
+                                {
+                                    let fieldName = $(this).attr('name').replace('[]', '');
+                                        if(formData[fieldName] === undefined)
+                                        {
+                                            formData[fieldName] = [];
+                                        }
+
+                                        $.each($(this).children("option"), function(key, value)
+                                        {
+                                            let currentValue = $(this).val();
+                                            let isSelected   = $(this).is(':selected');
+
+                                                if(isSelected === true)
+                                                {
+                                                    if((isMainAltRecipe === true || key > 0) && formData[fieldName].includes(currentValue) === false)
+                                                    {
+                                                        formData[fieldName].push(currentValue);
+                                                    }
+                                                }
+                                        });
+                                }
+                        }
+                        else
+                        {
+                            formData[$(this).attr('name').replace('[]', '')] = $(this).children("option:selected").val();
+                        }
                     }
                 }
             }
