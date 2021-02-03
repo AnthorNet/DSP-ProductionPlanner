@@ -35,7 +35,6 @@ export default class DSPCPP
         {
             this.buildingsData  = data.buildingsData;
             this.itemsData      = data.itemsData;
-            this.toolsData      = data.toolsData;
             this.recipesData    = data.recipesData;
 
             for(let recipeId in this.recipesData)
@@ -452,7 +451,6 @@ export default class DSPCPP
 
             buildings   : this.buildingsData,
             items       : this.itemsData,
-            tools       : this.toolsData,
             recipes     : this.recipesData,
 
             formData    : formData

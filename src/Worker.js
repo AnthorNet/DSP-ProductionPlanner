@@ -21,7 +21,6 @@ export default function ProductionPlannerWorker()
 
     self.buildings      = {};
     self.items          = {};
-    self.tools          = {};
     self.recipes        = {};
 
     self.requestedItems = {};
@@ -45,7 +44,6 @@ export default function ProductionPlannerWorker()
 
         self.buildings      = e.data.buildings;
         self.items          = e.data.items;
-        self.tools          = e.data.tools;
         self.recipes        = e.data.recipes;
 
         self.prepareOptions(e.data.formData);
@@ -1353,20 +1351,6 @@ export default function ProductionPlannerWorker()
                                     break;
                                 }
                             }
-                            for(let itemId in self.tools)
-                            {
-                                if(self.tools[itemId].className === ingredient)
-                                {
-                                    currentRecipe.push({
-                                        id      : itemId,
-                                        name    : self.tools[itemId].name,
-                                        image   : self.tools[itemId].image,
-                                        qty     : self.recipes[recipeId].ingredients[ingredient]
-                                    });
-
-                                    break;
-                                }
-                            }
                         }
 
                         break;
@@ -1449,23 +1433,7 @@ export default function ProductionPlannerWorker()
                     }
                     else
                     {
-                        if(self.tools[idRecipe] !== undefined)
-                        {
-                            html.push('<img src="' + self.tools[idRecipe].image + '" title="' + self.tools[idRecipe].name + '" style="width: 24px;" /> ');
-
-                            if(self.tools[idRecipe].url !== undefined)
-                            {
-                                html.push('<a href="' + self.tools[idRecipe].url + '">' + self.tools[idRecipe].name + '</a>');
-                            }
-                            else
-                            {
-                                html.push('<a href="' + self.baseUrls.tools + '/id/' + idRecipe + '/name/' + self.tools[idRecipe].name + '">' + self.tools[idRecipe].name + '</a>');
-                            }
-                        }
-                        else
-                        {
-                            html.push(idRecipe);
-                        }
+                        html.push(idRecipe);
                     }
 
                     html.push('</li>');
