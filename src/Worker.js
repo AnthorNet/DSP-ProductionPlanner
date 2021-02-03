@@ -539,7 +539,12 @@ export default function ProductionPlannerWorker()
                                                 + ' ' + self.items[node.data.itemId].name;
             }
 
-            if(node.data.nodeType === 'merger' || node.data.nodeType === 'splitter') //TODO: Balance?
+            if(node.data.nodeType === 'merger')
+            {
+                self.graphNodes[i].data.label   = '(' + self.items[node.data.itemId].name + ')';
+                self.graphNodes[i].data.image   = self.buildings.ConveyorBeltMk1.image;
+            }
+            if(node.data.nodeType === 'splitter')
             {
                 self.graphNodes[i].data.label   = self.buildings.Splitter.name + '\n(' + self.items[node.data.itemId].name + ')';
                 self.graphNodes[i].data.image   = self.buildings.Splitter.image;
@@ -800,6 +805,11 @@ export default function ProductionPlannerWorker()
                         if(self.buildings[buildingId].extractionRate !== undefined)
                         {
                             productionCraftingTime = 60 / self.buildings[buildingId].extractionRate;
+
+                            if(buildingId === 'Mining_Machine')
+                            {
+                                productionCraftingTime = 60 / (self.buildings[buildingId].extractionRate * self.buildings[buildingId].input);
+                            }
                         }
                     }
                     else
@@ -1187,8 +1197,11 @@ export default function ProductionPlannerWorker()
                             }
                             else
                             {
-                                //TODO: Merger in DSP?
-                                if(self.graphNodes[k].data.nodeType === 'merger' || self.graphNodes[k].data.nodeType === 'splitter')
+                                if(self.graphNodes[k].data.nodeType === 'merger')
+                                {
+                                    self.graphNodes[k].data.buildingType = 'ConveyorBeltMk1';
+                                }
+                                if(self.graphNodes[k].data.nodeType === 'splitter')
                                 {
                                     self.graphNodes[k].data.buildingType = 'Splitter';
                                 }
