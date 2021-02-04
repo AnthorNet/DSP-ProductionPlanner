@@ -793,6 +793,7 @@ export default function ProductionPlannerWorker()
             {
                 let productionCraftingTime  = 4,
                     productionPieces        = 1,
+                    maxProductionSpeed      = self.options.maxBeltSpeed,
                     productionRecipe        = false;
 
                     self.nodeIdKey++;
@@ -842,7 +843,32 @@ export default function ProductionPlannerWorker()
                         }
 
                     let qtyProduced         = (60 * productionSpeed / productionCraftingTime * productionPieces);
-                    let qtyUsed             = Math.min(qtyProduced, options.qty);
+                    let qtyUsed             = Math.min(maxProductionSpeed, qtyProduced, options.qty);
+
+                        // Should we reduce builgind speed for belts?
+                        if(productionRecipe !== false)
+                        {
+                            let isTooFast = true;
+                                while(isTooFast === true)
+                                {
+                                    isTooFast = false;
+
+                                    if(qtyProduced > 0)
+                                    {
+                                        for(let recipeItemClassName in productionRecipe)
+                                        {
+                                            let requiredQty     = (60 / productionCraftingTime * productionRecipe[recipeItemClassName]) * qtyUsed / qtyProduced;
+                                                if(requiredQty > maxProductionSpeed)
+                                                {
+                                                    console.log(recipeItemClassName, requiredQty, maxProductionSpeed, qtyProduced);
+                                                    isTooFast = true;
+                                                    qtyUsed--;
+                                                    break;
+                                                }
+                                        }
+                                    }
+                                }
+                        }
 
                     // Push new node!
                     self.graphNodes.push({data: {
@@ -1078,7 +1104,7 @@ export default function ProductionPlannerWorker()
                         }
                     }
 
-                    return qtyProduced;
+                    return qtyUsed;
             }
 
         return false;
