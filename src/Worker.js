@@ -1528,15 +1528,6 @@ export default function ProductionPlannerWorker()
             {
                 // Order by produce length
                 availableRecipes.sort(function(a, b){
-                    if(a.search('Recipe_Residual') !== -1 && self.recipes[b].name.search('Alternate:') === -1)
-                    {
-                        return 1;
-                    }
-                    if(self.recipes[a].name.search('Alternate:') === -1 && b.search('Recipe_Residual') !== -1)
-                    {
-                        return -1;
-                    }
-
                     let aLength = 0;
                     let bLength = 0;
 
@@ -1551,13 +1542,43 @@ export default function ProductionPlannerWorker()
 
                         if(aLength === bLength)
                         {
-                            if(self.recipes[a].name.search('Alternate:') !== -1 && self.recipes[b].name.search('Alternate:') === -1)
+                            if(self.recipes[a].className.search('_Alternative') !== -1 && self.recipes[b].className.search('_Alternative') === -1)
                             {
                                 return 1;
                             }
-                            if(self.recipes[a].name.search('Alternate:') === -1 && self.recipes[b].name.search('Alternate:') !== -1)
+                            if(self.recipes[a].className.search('_Alternative') === -1 && self.recipes[b].className.search('_Alternative') !== -1)
                             {
                                 return -1;
+                            }
+
+                            let produceA = null;
+                            let produceB = null;
+
+                                for(let item in self.recipes[a].produce)
+                                {
+                                    if(item === itemId)
+                                    {
+                                        produceA = (60 / self.recipes[a].mManufactoringDuration * self.recipes[a].produce[item]);
+                                        break;
+                                    }
+                                }
+                                for(let item in self.recipes[b].produce)
+                                {
+                                    if(item === itemId)
+                                    {
+                                        produceB = (60 / self.recipes[b].mManufactoringDuration * self.recipes[b].produce[item]);
+                                        break;
+                                    }
+                                }
+
+                            if(produceA !== null && produceB !== null)
+                            {
+                                if(produceA === produceB)
+                                {
+                                    return self.recipes[a].name.localeCompare(self.recipes[b].name);
+                                }
+
+                                return produceB - produceA;
                             }
                         }
 
