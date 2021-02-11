@@ -7,7 +7,7 @@ export default class DSPCPP
     constructor()
     {
         // General stuffs
-        this.baseUrls                   = {};
+        this.plannerUrl                 = '';
         this.doUpdateUrl                = true;
 
         this.debug                      = false;
@@ -444,7 +444,6 @@ export default class DSPCPP
 
         // Launch it!
         this.worker.postMessage({
-            baseUrls    : this.baseUrls,
             debug       : this.debug,
             language    : this.language,
             translate   : this.translate,
@@ -544,7 +543,7 @@ export default class DSPCPP
 
     updateUrl(url)
     {
-        let urlJoined = this.baseUrls.planner + '/' + url.join('/');
+        let urlJoined = this.plannerUrl + '/' + url.join('/');
             window.history.pushState({href: urlJoined}, '', urlJoined);
 
             if(typeof gtag === 'function')
