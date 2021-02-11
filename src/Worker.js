@@ -205,7 +205,6 @@ export default function ProductionPlannerWorker()
                                    mergingNodeData.nodeType === 'productionBuilding' && mergingNodeData.nodeType === sourceNodeData.nodeType && mergingNodeData.id !== sourceNodeData.id
                                 // Both nodes needs to have the same recipe ^^
                                 && mergingNodeData.recipe === sourceNodeData.recipe
-                                && sourceNodeData.clockSpeed === 100 // Not touched yet!
                             )
                             {
                                 if(mergingNodeData.qtyUsed < mergingNodeData.qtyProduced || self.options.viewMode === 'SIMPLE')
@@ -600,12 +599,6 @@ export default function ProductionPlannerWorker()
                                                         //+ '\n' + '(' + node.data.id + ')' // DEBUG
                                                         //+ '\n' + '(' + node.data.qtyUsed + '/' + node.data.qtyProduced + ')' // DEBUG
                                                         ;
-
-                        if(self.graphNodes[i].data.clockSpeed > 100)
-                        {
-                            self.graphNodes[i].data.label  += '\n(' + Math.round((self.graphNodes[i].data.clockSpeed - 100) / 50) + ' power shards)';
-                            self.graphNodes[i].data.borderWidth = Math.round((self.graphNodes[i].data.clockSpeed - 100) / 50) * 15 + 15 + 'px';
-                        }
                     }
 
                     if(self.options.viewMode === 'SIMPLE')
@@ -617,7 +610,7 @@ export default function ProductionPlannerWorker()
                     }
 
                 // Calculate required power!
-                let powerUsage              = self.buildings[node.data.buildingType].powerUsed * Math.pow(performance / 100, 1.6);
+                let powerUsage              = self.buildings[node.data.buildingType].powerUsed * performance / 100;
                     self.requiredPower     += powerUsage;
 
                 // Add to items list
@@ -878,7 +871,6 @@ export default function ProductionPlannerWorker()
                         qtyProducedDefault  : qtyProduced,
                         qtyProduced         : qtyProduced,
                         qtyUsed             : qtyUsed,
-                        clockSpeed          : 100,
                         image               : self.buildings[buildingId].image
                     }});
 
