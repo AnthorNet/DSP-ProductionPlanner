@@ -556,7 +556,7 @@ export default function ProductionPlannerWorker()
 
             if(node.data.nodeType === 'productionBuilding')
             {
-                let performance                         = (node.data.qtyUsed / node.data.qtyProducedDefault * 100);
+                let performance                         = (node.data.qtyUsed / (node.data.qtyProduced/* * node.data.productionSpeed*/) * 100);
                     self.graphNodes[i].data.performance = Math.round(performance);
                 let getColorForPercentage               = function(pct) {
                     pct /= 100;
@@ -833,8 +833,9 @@ export default function ProductionPlannerWorker()
                             productionSpeed = self.buildings[buildingId].productionSpeed;
                         }
 
-                    let qtyProduced         = (60 * productionSpeed / productionCraftingTime * productionPieces);
-                    let qtyUsed             = Math.min(maxProductionSpeed, qtyProduced, options.qty);
+                    let qtyProduced         = (60 / productionCraftingTime * productionPieces);
+                    let qtyMaxProduced      = (60 / productionCraftingTime * productionSpeed * productionPieces);
+                    let qtyUsed             = Math.min(maxProductionSpeed, qtyMaxProduced, options.qty);
 
                         // Should we reduce builgind speed for belts?
                         if(productionRecipe !== false)
@@ -868,8 +869,8 @@ export default function ProductionPlannerWorker()
                         buildingType        : buildingId,
                         recipe              : options.recipe,
                         itemOut             : options.id,
-                        qtyProducedDefault  : qtyProduced,
-                        qtyProduced         : qtyProduced,
+                        productionSpeed     : productionSpeed,
+                        qtyProduced         : qtyMaxProduced,
                         qtyUsed             : qtyUsed,
                         image               : self.buildings[buildingId].image
                     }});
@@ -1464,6 +1465,11 @@ export default function ProductionPlannerWorker()
 
             if(availableRecipes.length > 0)
             {
+                if(currentItemClassName === 'Hydrogen')
+                {
+                    return 'Recipe_Plasma_Refining';
+                }
+
                 // Order by produce length
                 availableRecipes.sort(function(a, b){
                     let aLength = 0;
