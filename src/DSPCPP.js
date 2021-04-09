@@ -150,13 +150,15 @@ export default class DSPCPP
     {
         $('.addOneItem').on('click', function(e){
             let currentId       = $(e.currentTarget).attr('data-id'),
-                currentInput    = $('input.requireInput[data-id=' + currentId + ']');
+                currentType     = $(e.currentTarget).attr('data-type'),
+                currentInput    = $('input.requireInput[data-id=' + currentId + '][data-type=' + currentType + ']');
                 e.preventDefault();
 
             $(e.currentTarget).addClass('d-none').removeClass('d-flex');
             currentInput.closest('.media').find('.stepBackward').removeClass('disabled');
             currentInput.val(1).closest('.media').addClass('d-flex').removeClass('d-none');
-            $('#chooseItem').modal('hide');
+            $('#chooseItemInput').modal('hide');
+            $('#chooseItemOutput').modal('hide');
 
             this.triggerUpdateDebounce();
         }.bind(this));
@@ -201,7 +203,7 @@ export default class DSPCPP
             if(parseInt($(e.currentTarget).val()) === 0)
             {
                 $(e.currentTarget).closest('.media').addClass('d-none').removeClass('d-flex');
-                $('.addOneItem[data-id=' + $(e.currentTarget).attr('data-id') + ']').addClass('d-flex').removeClass('d-none');
+                $('.addOneItem[data-id=' + $(e.currentTarget).attr('data-id') + '][data-type=' + $(e.currentTarget).attr('data-type') + ']').addClass('d-flex').removeClass('d-none');
             }
 
             this.triggerUpdateDebounce();
@@ -334,9 +336,21 @@ export default class DSPCPP
                 // General items...
                 if($(this).val() > 0)
                 {
-                    if($(this).attr('data-id') !== undefined)
+                    if($(this).attr('data-id') !== undefined && $(this).attr('data-type') !== undefined)
                     {
-                        formData[$(this).attr('data-id')] = $(this).val();
+                        if($(this).attr('data-type') === 'output')
+                        {
+                            formData[$(this).attr('data-id')] = $(this).val();
+                        }
+                        if($(this).attr('data-type') === 'input')
+                        {
+                            if(formData.input === undefined)
+                            {
+                                formData.input = {};
+                            }
+
+                            formData.input[$(this).attr('data-id')] = $(this).val();
+                        }
                     }
                     else
                     {
@@ -543,7 +557,8 @@ export default class DSPCPP
 
     updateUrl(url)
     {
-        let urlJoined = this.plannerUrl + '/' + url.join('/');
+        let urlJoined   = this.plannerUrl;
+            urlJoined  += '/json/' + encodeURIComponent(JSON.stringify(url));
             window.history.pushState({href: urlJoined}, '', urlJoined);
 
             if(typeof gtag === 'function')

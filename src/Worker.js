@@ -2,7 +2,7 @@
 
 export default function ProductionPlannerWorker()
 {
-    self.url            = [];
+    self.url            = {};
 
     self.debug          = false;
     self.locale         = 'en';
@@ -22,6 +22,7 @@ export default function ProductionPlannerWorker()
     self.items          = {};
     self.recipes        = {};
 
+    self.inputItems     = {};
     self.requestedItems = {};
     self.requiredPower  = 0;
     self.listItems      = {};
@@ -53,21 +54,27 @@ export default function ProductionPlannerWorker()
         {
             if(formData[itemKey] !== undefined && self.items[itemKey] !== undefined)
             {
-                self.url.push(itemKey + '/' + formData[itemKey]);
+                self.url[itemKey]            = formData[itemKey];
                 self.requestedItems[itemKey] = formData[itemKey];
             }
         }
 
-        if(formData.direction !== undefined)
+        if(formData.input !== undefined)
         {
-            self.url.push('direction/' + formData.direction);
+            self.url.input  = formData.input
+            self.inputItems = formData.input;
+        }
+
+        if(formData.direction !== undefined && self.graphDirection !== formData.direction)
+        {
+            self.url.direction  = formData.direction;
             self.graphDirection = formData.direction;
         }
 
         if(formData.view !== undefined && formData.view !== 'REALISTIC')
         {
-            self.url.push('view/' + formData.view);
-            self.options.viewMode = formData.view;
+            self.url.view           = formData.view;
+            self.options.viewMode   = formData.view;
 
             // If using SIMPLE view, reset some other options
             if(formData.view === 'SIMPLE')
@@ -86,27 +93,27 @@ export default function ProductionPlannerWorker()
 
         if(formData.mergeBuildings !== undefined)
         {
-            self.url.push('mergeBuildings/' + formData.mergeBuildings);
+            self.url.mergeBuildings     = formData.mergeBuildings;
             self.options.mergeBuildings = parseInt(formData.mergeBuildings);
         }
 
         if(formData.useManifolds !== undefined)
         {
-            self.url.push('useManifolds/' + formData.useManifolds);
-            self.options.useManifolds = parseInt(formData.useManifolds);
+            self.url.useManifolds       = formData.useManifolds;
+            self.options.useManifolds   = parseInt(formData.useManifolds);
         }
 
         if(formData.maxLevel !== undefined)
         {
-            self.url.push('maxLevel/' + formData.maxLevel);
-            self.options.maxLevel = parseInt(formData.maxLevel);
+            self.url.maxLevel       = formData.maxLevel;
+            self.options.maxLevel   = parseInt(formData.maxLevel);
         }
 
         if(formData.maxBeltSpeed !== undefined)
         {
-            if(self.options.maxBeltSpeed !== parseInt(formData.maxBeltSpeed))
+            if(self.options.maxBeltSpeed / 60 !== parseInt(formData.maxBeltSpeed))
             {
-                self.url.push('maxBeltSpeed/' + formData.maxBeltSpeed);
+                self.url.maxBeltSpeed = formData.maxBeltSpeed;
             }
 
             self.options.maxBeltSpeed = parseInt(formData.maxBeltSpeed) * 60;
@@ -116,7 +123,7 @@ export default function ProductionPlannerWorker()
         {
             if(self.options.maxAssemblerSpeed !== formData.maxAssemblerSpeed)
             {
-                self.url.push('maxAssemblerSpeed/' + formData.maxAssemblerSpeed);
+                self.url.maxAssemblerSpeed = formData.maxAssemblerSpeed;
             }
 
             self.options.maxAssemblerSpeed = formData.maxAssemblerSpeed;
@@ -146,12 +153,15 @@ export default function ProductionPlannerWorker()
             for(let i = 0; i < formData.altRecipes.length; i++)
             {
                 let recipeKey = formData.altRecipes[i];
+                    if(self.recipes[recipeKey] !== undefined)
+                    {
+                        self.options.altRecipes.push(recipeKey);
+                    }
+            }
 
-                if(self.recipes[recipeKey] !== undefined)
-                {
-                    self.options.altRecipes.push(recipeKey);
-                    self.url.push('altRecipes/' + recipeKey);
-                }
+            if(self.options.altRecipes.length > 0)
+            {
+                self.url.altRecipes = self.options.altRecipes;
             }
         }
 
@@ -160,6 +170,55 @@ export default function ProductionPlannerWorker()
     };
 
     self.startCalculation = function() {
+        // Add pseudo-by products for inputs...
+        for(let itemKey in self.inputItems)
+        {
+            let requestedQty = parseFloat(self.inputItems[itemKey]);
+            let maxMergedQty = self.options.maxBeltSpeed;
+
+                if(self.items[itemKey].category === 'liquid' || self.items[itemKey].category === 'gas')
+                {
+                    requestedQty *= 1000;
+                    maxMergedQty = self.options.maxPipeSpeed;
+                }
+
+                while(requestedQty >= maxMergedQty)
+                {
+                    let mainNodeVisId  = itemKey + '_' + self.nodeIdKey;
+                        self.nodeIdKey++;
+
+                        self.graphNodes.push({data: {
+                            id                  : mainNodeVisId + '_byProduct',
+                            nodeType            : 'byProductItem',
+                            itemId              : itemKey,
+                            qtyUsed             : 0,
+                            qtyProduced         : ((self.items[itemKey].category === 'liquid' || self.items[itemKey].category === 'gas') ? (maxMergedQty / 1000) : maxMergedQty),
+                            neededQty           : ((self.items[itemKey].category === 'liquid' || self.items[itemKey].category === 'gas') ? (maxMergedQty / 1000) : maxMergedQty),
+                            image               : self.items[itemKey].image
+                        }});
+
+                        requestedQty -= maxMergedQty;
+                }
+
+                if(requestedQty > 0)
+                {
+                    let mainNodeVisId  = itemKey + '_' + self.nodeIdKey;
+                        self.nodeIdKey++;
+
+                        self.graphNodes.push({data: {
+                            id                  : mainNodeVisId + '_byProduct',
+                            nodeType            : 'byProductItem',
+                            itemId              : itemKey,
+                            qtyUsed             : 0,
+                            qtyProduced         : ((self.items[itemKey].category === 'liquid' || self.items[itemKey].category === 'gas') ? (requestedQty / 1000) : requestedQty),
+                            neededQty           : ((self.items[itemKey].category === 'liquid' || self.items[itemKey].category === 'gas') ? (requestedQty / 1000) : requestedQty),
+                            image               : self.items[itemKey].image
+                        }});
+                    console.log(itemKey);
+                }
+        }
+
+        // Parse required items!
         for(let itemKey in self.requestedItems)
         {
             let requestedQty = self.requestedItems[itemKey];
