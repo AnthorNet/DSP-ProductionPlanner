@@ -426,7 +426,7 @@ export default class DSPCPP
             {
                 $('#requiredPower').html(
                     new Intl.NumberFormat($this.language)
-                            .format(Math.ceil(e.data.power)) + ' MW'
+                            .format(Math.ceil(e.data.power * 100) / 100) + ' MW'
                 );
                 return;
             }

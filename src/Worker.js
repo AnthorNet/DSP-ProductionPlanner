@@ -670,7 +670,7 @@ export default function ProductionPlannerWorker()
 
                 // Calculate required power!
                 let powerUsage              = self.buildings[node.data.buildingType].powerUsed * performance / 100;
-                    self.requiredPower     += powerUsage;
+                    self.requiredPower     += powerUsage / 1000; // KW => MW
 
                 // Add to items list
                 if(self.listItems[node.data.itemOut] === undefined)
